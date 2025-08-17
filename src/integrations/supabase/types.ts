@@ -14,7 +14,118 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      avisos: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          category: string
+          created_at: string | null
+          extracted_text: string | null
+          id: string
+          image_url: string
+          user_id: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          extracted_text?: string | null
+          id?: string
+          image_url: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          extracted_text?: string | null
+          id?: string
+          image_url?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hours_log: {
+        Row: {
+          category: string
+          created_at: string | null
+          hours: number
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          hours: number
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          hours?: number
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hours_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_admin: boolean | null
+          password: string
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_admin?: boolean | null
+          password: string
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_admin?: boolean | null
+          password?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

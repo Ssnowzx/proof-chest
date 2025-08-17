@@ -18,6 +18,14 @@ export default {
 			}
 		},
 		extend: {
+			backgroundImage: {
+				'gradient-cosmic': 'var(--gradient-cosmic)',
+				'gradient-subtle': 'var(--gradient-subtle)'
+			},
+			boxShadow: {
+				'cosmic': 'var(--shadow-cosmic)',
+				'glow': 'var(--shadow-glow)'
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',

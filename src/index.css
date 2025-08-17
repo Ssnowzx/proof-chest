@@ -2,95 +2,100 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ProofChest - Design System with Cosmic Night Theme */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    /* Cosmic Night Light Theme Colors */
+    --background: 252.73 48.39% 97.30%;
+    --foreground: 282.42 26.61% 30.15%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 282.42 26.61% 30.15%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
+    --popover-foreground: 282.42 26.61% 30.15%;
+    --primary: 288.03 58.69% 54.17%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 292.69 19.92% 91.74%;
+    --secondary-foreground: 288.17 42.84% 41.43%;
+    --muted: 286.15 6.31% 95.80%;
+    --muted-foreground: 284.74 21.31% 54.26%;
+    --accent: 262.14 17.06% 92.21%;
+    --accent-foreground: 282.42 26.61% 30.15%;
+    --destructive: 14.99 64.71% 68.61%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 285.96 9.87% 91.15%;
+    --input: 285.96 9.87% 91.15%;
+    --ring: 288.03 58.69% 54.17%;
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Custom gradients and effects */
+    --gradient-cosmic: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
+    --shadow-cosmic: 0 10px 30px -10px hsl(var(--primary) / 0.3);
+    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.2);
+    
+    /* Sidebar */
+    --sidebar-background: 286.15 6.31% 95.80%;
+    --sidebar-foreground: 282.42 26.61% 30.15%;
+    --sidebar-primary: 288.03 58.69% 54.17%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 262.14 17.06% 92.21%;
+    --sidebar-accent-foreground: 282.42 26.61% 30.15%;
+    --sidebar-border: 285.96 9.87% 91.15%;
+    --sidebar-ring: 288.03 58.69% 54.17%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Chart colors */
+    --chart-1: 288.03 58.69% 54.17%;
+    --chart-2: 288.99 54.29% 70.42%;
+    --chart-3: 276.71 67.13% 56.79%;
+    --chart-4: 281.81 63.32% 63.56%;
+    --chart-5: 279.38 56.51% 45.09%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Cosmic Night Dark Theme Colors */
+    --background: 283.80 11.01% 17.43%;
+    --foreground: 285.88 11.73% 91.85%;
+    --card: 282.93 16.74% 22.84%;
+    --card-foreground: 285.88 11.73% 91.85%;
+    --popover: 282.93 16.74% 22.84%;
+    --popover-foreground: 285.88 11.73% 91.85%;
+    --primary: 290.40 51.41% 71.62%;
+    --primary-foreground: 283.80 11.01% 17.43%;
+    --secondary: 283.46 31.23% 31.39%;
+    --secondary-foreground: 285.91 33.59% 83.67%;
+    --muted: 281.44 25.79% 27.10%;
+    --muted-foreground: 285.17 21.60% 71.66%;
+    --accent: 280.97 34.79% 33.54%;
+    --accent-foreground: 285.88 11.73% 91.85%;
+    --destructive: 14.99 64.71% 68.61%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 282.58 24.72% 32.61%;
+    --input: 282.58 24.72% 32.61%;
+    --ring: 290.40 51.41% 71.62%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    /* Custom gradients and effects for dark mode */
+    --gradient-cosmic: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
+    --shadow-cosmic: 0 10px 30px -10px hsl(var(--primary) / 0.4);
+    --shadow-glow: 0 0 40px hsl(var(--primary) / 0.3);
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    /* Sidebar dark */
+    --sidebar-background: 282.93 16.74% 22.84%;
+    --sidebar-foreground: 285.88 11.73% 91.85%;
+    --sidebar-primary: 290.40 51.41% 71.62%;
+    --sidebar-primary-foreground: 283.80 11.01% 17.43%;
+    --sidebar-accent: 280.97 34.79% 33.54%;
+    --sidebar-accent-foreground: 285.88 11.73% 91.85%;
+    --sidebar-border: 282.58 24.72% 32.61%;
+    --sidebar-ring: 290.40 51.41% 71.62%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Chart colors dark */
+    --chart-1: 290.40 51.41% 71.62%;
+    --chart-2: 274.91 42.29% 63.82%;
+    --chart-3: 244.75 52.88% 74.82%;
+    --chart-4: 186.68 41.15% 71.24%;
+    --chart-5: 346.81 59.36% 75.46%;
   }
 }
 
