@@ -1,15 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, FileText, Eye, Calendar, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { ArrowLeft, FileText, Eye, Calendar, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Document {
   id: string;
@@ -28,12 +34,41 @@ const DocumentsPage = () => {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
 
   const categoryConfig = {
-    apc: { title: 'APC', description: 'Atividades Práticas Curriculares', color: 'bg-purple-500' },
-    ace: { title: 'ACE', description: 'Atividades Complementares de Ensino', color: 'bg-blue-500' },
-    recibos: { title: 'RECIBOS', description: 'Comprovantes de Mensalidade', color: 'bg-green-500' }
+    apc: {
+      title: "APC",
+      description: "Atividades Práticas Curriculares",
+      color: "bg-purple-500",
+    },
+    ace: {
+      title: "ACE",
+      description: "Atividades Complementares de Ensino",
+      color: "bg-blue-500",
+    },
+    recibos: {
+      title: "RECIBOS",
+      description: "Comprovantes de Mensalidade",
+      color: "bg-green-500",
+    },
   };
 
   const config = categoryConfig[category as keyof typeof categoryConfig];
+
+  // helper to determine if current user is a non-admin (consider DEV persisted user)
+  const isNonAdminUser = (() => {
+    if (user) return !user.is_admin;
+    if (import.meta.env.DEV) {
+      try {
+        const raw = localStorage.getItem("dev_user");
+        if (raw) {
+          const du = JSON.parse(raw);
+          return !du?.is_admin;
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    return false;
+  })();
 
   useEffect(() => {
     if (user && category) {
@@ -44,18 +79,46 @@ const DocumentsPage = () => {
   const loadDocuments = async () => {
     try {
       setLoading(true);
+
+      // DEV fallback: load documents from localStorage when using a dev user id
+      if (import.meta.env.DEV && user?.id?.startsWith("dev")) {
+        console.log("DEV mode: loading documents from localStorage");
+        const devDocs = JSON.parse(
+          localStorage.getItem("dev_documents") || "[]"
+        );
+        const categoryKey =
+          category?.toLowerCase() === "recibo"
+            ? "recibos"
+            : category?.toLowerCase();
+        const filtered = devDocs
+          .filter(
+            (d: any) =>
+              (d.category || "").toLowerCase() ===
+              (categoryKey || "").toLowerCase()
+          )
+          .map((d: any) => ({
+            id: d.id,
+            category: d.category,
+            image_url: d.dataUrl || d.image_url,
+            extracted_text: d.extracted_text,
+            created_at: d.created_at,
+          }));
+        setDocuments(filtered.reverse());
+        return;
+      }
+
       const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('category', category.toUpperCase())
-        .order('created_at', { ascending: false });
+        .from("documents")
+        .select("*")
+        .eq("user_id", user?.id)
+        .eq("category", category.toUpperCase())
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setDocuments(data || []);
     } catch (error) {
-      console.error('Error loading documents:', error);
-      toast.error('Erro ao carregar documentos');
+      console.error("Error loading documents:", error);
+      toast.error("Erro ao carregar documentos");
     } finally {
       setLoading(false);
     }
@@ -63,25 +126,40 @@ const DocumentsPage = () => {
 
   const deleteDocument = async (docId: string) => {
     try {
+      // DEV fallback: remove from localStorage
+      if (import.meta.env.DEV && user?.id?.startsWith("dev")) {
+        const devDocs = JSON.parse(
+          localStorage.getItem("dev_documents") || "[]"
+        );
+        const remaining = devDocs.filter((d: any) => d.id !== docId);
+        localStorage.setItem("dev_documents", JSON.stringify(remaining));
+        setDocuments(documents.filter((doc) => doc.id !== docId));
+        toast.success("Documento excluído (modo desenvolvimento)");
+        return;
+      }
+
       const { error } = await supabase
-        .from('documents')
+        .from("documents")
         .delete()
-        .eq('id', docId)
-        .eq('user_id', user?.id);
+        .eq("id", docId)
+        .eq("user_id", user?.id);
 
       if (error) throw error;
-      
-      setDocuments(documents.filter(doc => doc.id !== docId));
-      toast.success('Documento excluído com sucesso');
+
+      setDocuments(documents.filter((doc) => doc.id !== docId));
+      toast.success("Documento excluído com sucesso");
     } catch (error) {
-      console.error('Error deleting document:', error);
-      toast.error('Erro ao excluir documento');
+      console.error("Error deleting document:", error);
+      toast.error("Erro ao excluir documento");
     }
   };
 
   const getImageUrl = (url: string) => {
-    if (url.startsWith('http')) return url;
-    return `${supabase.storage.from('documents').getPublicUrl(url).data.publicUrl}`;
+    if (!url) return "";
+    if (url.startsWith("http") || url.startsWith("data:")) return url;
+    return `${
+      supabase.storage.from("documents").getPublicUrl(url).data.publicUrl
+    }`;
   };
 
   if (!config) {
@@ -89,7 +167,7 @@ const DocumentsPage = () => {
       <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Categoria não encontrada</h1>
-          <Button onClick={() => navigate('/dashboard')}>
+          <Button onClick={() => navigate("/dashboard")}>
             Voltar ao Dashboard
           </Button>
         </div>
@@ -106,22 +184,38 @@ const DocumentsPage = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate("/dashboard")}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
             </Button>
-            <div className={`w-10 h-10 ${config.color} rounded-xl flex items-center justify-center`}>
+            <div
+              className={`w-10 h-10 ${config.color} rounded-xl flex items-center justify-center`}
+            >
               <FileText className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold">{config.title}</h1>
-              <p className="text-sm text-muted-foreground">{config.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {config.description}
+              </p>
             </div>
           </div>
-          <Badge variant="secondary" className="px-3 py-1">
-            {documents.length} documentos
-          </Badge>
+          <div className="flex items-center space-x-3">
+            <Badge variant="secondary" className="px-3 py-1">
+              {documents.length} documentos
+            </Badge>
+            {isNonAdminUser && documents.length > 0 && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => navigate("/upload")}
+                className="ml-2"
+              >
+                Adicionar Documento
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -134,22 +228,30 @@ const DocumentsPage = () => {
         ) : documents.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhum documento encontrado</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              Nenhum documento encontrado
+            </h3>
             <p className="text-muted-foreground mb-6">
               Você ainda não tem documentos da categoria {config.title}
             </p>
-            <Button onClick={() => navigate('/upload')}>
+            <Button onClick={() => navigate("/upload")}>
               Adicionar Primeiro Documento
             </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {documents.map((doc) => (
-              <Card key={doc.id} className="group hover:shadow-cosmic transition-all duration-300">
+              <Card
+                key={doc.id}
+                className="group hover:shadow-cosmic transition-all duration-300"
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-medium">
-                      {config.title} - {format(new Date(doc.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+                      {config.title} -{" "}
+                      {format(new Date(doc.created_at), "dd/MM/yyyy", {
+                        locale: ptBR,
+                      })}
                     </CardTitle>
                     <Button
                       variant="ghost"
@@ -162,7 +264,11 @@ const DocumentsPage = () => {
                   </div>
                   <CardDescription className="flex items-center text-xs">
                     <Calendar className="w-3 h-3 mr-1" />
-                    {format(new Date(doc.created_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                    {format(
+                      new Date(doc.created_at),
+                      "dd 'de' MMMM 'às' HH:mm",
+                      { locale: ptBR }
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -175,7 +281,7 @@ const DocumentsPage = () => {
                       onClick={() => setSelectedDoc(doc)}
                     />
                   </div>
-                  
+
                   {/* Extracted Text Preview */}
                   {doc.extracted_text && (
                     <div className="bg-muted/50 p-3 rounded-md">
@@ -188,7 +294,7 @@ const DocumentsPage = () => {
                       </p>
                     </div>
                   )}
-                  
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -212,12 +318,12 @@ const DocumentsPage = () => {
             <div className="p-6 border-b">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold">
-                  {config.title} - {format(new Date(selectedDoc.created_at), 'dd/MM/yyyy', { locale: ptBR })}
+                  {config.title} -{" "}
+                  {format(new Date(selectedDoc.created_at), "dd/MM/yyyy", {
+                    locale: ptBR,
+                  })}
                 </h2>
-                <Button
-                  variant="ghost"
-                  onClick={() => setSelectedDoc(null)}
-                >
+                <Button variant="ghost" onClick={() => setSelectedDoc(null)}>
                   ✕
                 </Button>
               </div>

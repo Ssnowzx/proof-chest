@@ -1,30 +1,42 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Upload, Camera, FileText, Check } from 'lucide-react';
-import { toast } from 'sonner';
-import Tesseract from 'tesseract.js';
+import React, { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { ArrowLeft, Upload, Camera, FileText, Check } from "lucide-react";
+import { toast } from "sonner";
+import Tesseract from "tesseract.js";
 
 const UploadPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [category, setCategory] = useState<string>('');
+  const [category, setCategory] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
-  const [extractedText, setExtractedText] = useState('');
-  const [preview, setPreview] = useState<string>('');
+  const [extractedText, setExtractedText] = useState("");
+  const [preview, setPreview] = useState<string>("");
 
   const categories = [
-    { value: 'APC', label: 'APC - Atividades Práticas Curriculares' },
-    { value: 'ACE', label: 'ACE - Atividades Complementares de Ensino' },
-    { value: 'RECIBO', label: 'RECIBOS - Comprovantes de Mensalidade' }
+    { value: "APC", label: "APC - Atividades Práticas Curriculares" },
+    { value: "ACE", label: "ACE - Atividades Complementares de Ensino" },
+    { value: "RECIBO", label: "RECIBOS - Comprovantes de Mensalidade" },
   ];
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,7 +45,7 @@ const UploadPage = () => {
       setSelectedFile(file);
       const previewUrl = URL.createObjectURL(file);
       setPreview(previewUrl);
-      setExtractedText('');
+      setExtractedText("");
     }
   };
 
@@ -44,67 +56,144 @@ const UploadPage = () => {
   const extractTextFromImage = async (file: File): Promise<string> => {
     try {
       setOcrProgress(0);
-      
-      const result = await Tesseract.recognize(file, 'por', {
+
+      const result = await Tesseract.recognize(file, "por", {
         logger: (info) => {
-          if (info.status === 'recognizing text') {
+          if (info.status === "recognizing text") {
             setOcrProgress(Math.round(info.progress * 100));
           }
-        }
+        },
       });
 
       return result.data.text;
     } catch (error) {
-      console.error('OCR Error:', error);
+      console.error("OCR Error:", error);
       throw error;
     }
   };
 
   const uploadDocument = async () => {
-    if (!selectedFile || !category || !user) {
-      toast.error('Selecione um arquivo e uma categoria');
+    // Debug logs to help identify why uploads may be blocked
+    console.log("uploadDocument - debug:", { selectedFile, category, user });
+
+    if (!selectedFile) {
+      toast.error("Selecione um arquivo");
+      return;
+    }
+
+    if (!category) {
+      toast.error("Selecione uma categoria");
+      return;
+    }
+
+    if (!user) {
+      toast.error("Faça login antes de salvar o documento");
       return;
     }
 
     try {
       setLoading(true);
-      
+
       // Extract text using OCR
-      toast.info('Extraindo texto da imagem...');
+      toast.info("Extraindo texto da imagem...");
       const extractedText = await extractTextFromImage(selectedFile);
       setExtractedText(extractedText);
 
-      // Upload file to Supabase Storage
-      const fileExt = selectedFile.name.split('.').pop();
+      // Prepare file name
+      const fileExt = selectedFile.name.split(".").pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(fileName, selectedFile);
 
-      if (uploadError) throw uploadError;
+      // DEV fallback: don't call Supabase for dev users (avoid RLS/storage policy issues)
+      if (import.meta.env.DEV && user.id?.startsWith("dev")) {
+        console.log(
+          "DEV mode: saving document to localStorage instead of Supabase"
+        );
+
+        // convert file to data URL so we can preview later
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(selectedFile);
+        });
+
+        const devDocs = JSON.parse(
+          localStorage.getItem("dev_documents") || "[]"
+        );
+        devDocs.push({
+          id: fileName,
+          fileName,
+          dataUrl,
+          category,
+          extracted_text: extractedText,
+          created_at: new Date().toISOString(),
+        });
+        localStorage.setItem("dev_documents", JSON.stringify(devDocs));
+
+        toast.success("Documento salvo (modo desenvolvimento)");
+
+        const categoryPath =
+          category.toLowerCase() === "recibo"
+            ? "recibos"
+            : category.toLowerCase();
+        navigate(`/documents/${categoryPath}`);
+        return;
+      }
+
+      // Upload file to Supabase Storage (use upsert to avoid conflict errors)
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(fileName, selectedFile, { upsert: true });
+
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw uploadError;
+      }
+
+      console.log("Storage upload success:", uploadData);
 
       // Save document record to database
-      const { error: dbError } = await supabase
-        .from('documents')
+      const { data: dbData, error: dbError } = await supabase
+        .from("documents")
         .insert({
           user_id: user.id,
           category,
           image_url: fileName,
-          extracted_text: extractedText
+          extracted_text: extractedText,
         });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error("DB insert error:", dbError);
+        throw dbError;
+      }
 
-      toast.success('Documento salvo com sucesso!');
-      
+      toast.success("Documento salvo com sucesso!");
+
       // Navigate to the category page
-      const categoryPath = category.toLowerCase() === 'recibo' ? 'recibos' : category.toLowerCase();
+      const categoryPath =
+        category.toLowerCase() === "recibo"
+          ? "recibos"
+          : category.toLowerCase();
       navigate(`/documents/${categoryPath}`);
-      
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Erro ao salvar documento');
+    } catch (error: any) {
+      console.error("Upload error:", error);
+
+      // Detect common RLS error and give actionable message
+      const msg = String(error?.message || error?.statusText || error);
+      if (msg.toLowerCase().includes("row-level")) {
+        toast.error(
+          "Erro de permissão (RLS). Verifique políticas do Supabase para a tabela 'documents'."
+        );
+      } else if (
+        msg.toLowerCase().includes("bad request") ||
+        msg.includes("400")
+      ) {
+        toast.error(
+          "Erro no upload (400). Verifique bucket 'documents' e se o arquivo é suportado."
+        );
+      } else {
+        toast.error("Erro ao salvar documento");
+      }
     } finally {
       setLoading(false);
       setOcrProgress(0);
@@ -119,7 +208,7 @@ const UploadPage = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate("/dashboard")}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Voltar
@@ -129,7 +218,9 @@ const UploadPage = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold">Adicionar Documento</h1>
-            <p className="text-sm text-muted-foreground">Upload com OCR automático</p>
+            <p className="text-sm text-muted-foreground">
+              Upload com OCR automático
+            </p>
           </div>
         </div>
       </div>
@@ -140,13 +231,16 @@ const UploadPage = () => {
           <CardHeader>
             <CardTitle>Upload de Documento</CardTitle>
             <CardDescription>
-              Selecione uma imagem e categoria. O sistema extrairá o texto automaticamente.
+              Selecione uma imagem e categoria. O sistema extrairá o texto
+              automaticamente.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Category Selection */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Categoria do Documento</label>
+              <label className="text-sm font-medium">
+                Categoria do Documento
+              </label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma categoria" />
@@ -164,14 +258,9 @@ const UploadPage = () => {
             {/* File Upload */}
             <div className="space-y-4">
               <label className="text-sm font-medium">Imagem do Documento</label>
-              
+
               {!selectedFile ? (
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-                  <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="font-medium mb-2">Adicione sua imagem</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Arraste e solte ou clique para selecionar
-                  </p>
+                <div className="text-center">
                   <div className="flex gap-2 justify-center">
                     <Button
                       variant="outline"
@@ -180,14 +269,14 @@ const UploadPage = () => {
                       <FileText className="w-4 h-4 mr-2" />
                       Escolher Arquivo
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleCameraCapture}
-                    >
+                    <Button variant="outline" onClick={handleCameraCapture}>
                       <Camera className="w-4 h-4 mr-2" />
                       Câmera
                     </Button>
                   </div>
+                  <p className="text-sm text-muted-foreground mt-3">
+                    Selecione um arquivo para iniciar o upload
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -199,7 +288,7 @@ const UploadPage = () => {
                       className="w-full h-64 object-cover"
                     />
                   </div>
-                  
+
                   {/* File Info */}
                   <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                     <div className="flex items-center space-x-2">
@@ -211,8 +300,8 @@ const UploadPage = () => {
                       size="sm"
                       onClick={() => {
                         setSelectedFile(null);
-                        setPreview('');
-                        setExtractedText('');
+                        setPreview("");
+                        setExtractedText("");
                       }}
                     >
                       Remover
@@ -249,10 +338,16 @@ const UploadPage = () => {
             )}
 
             {/* Upload Button */}
+            {!user && (
+              <p className="text-sm text-red-500">
+                Faça login para salvar documentos.
+              </p>
+            )}
+
             <Button
               className="w-full bg-gradient-cosmic hover:shadow-glow transition-all duration-200"
               onClick={uploadDocument}
-              disabled={!selectedFile || !category || loading}
+              disabled={!selectedFile || !category || !user || loading}
             >
               {loading ? (
                 <>

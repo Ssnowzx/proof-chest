@@ -1,23 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { useAuth } from '@/contexts/AuthContext';
-import { FileText, GraduationCap } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { useAuth } from "@/contexts/AuthContext";
+import { FileText, GraduationCap } from "lucide-react";
 
 const Login = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login, user } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const { login, signUp, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      navigate("/dashboard");
     }
   }, [user, navigate]);
 
@@ -26,11 +34,19 @@ const Login = () => {
     if (!username || !password) return;
 
     setIsLoading(true);
-    const success = await login(username, password);
-    setIsLoading(false);
-
-    if (success) {
-      navigate('/dashboard');
+    if (isSignUp) {
+      if (password !== confirmPassword) {
+        alert("As senhas não coincidem");
+        setIsLoading(false);
+        return;
+      }
+      const success = await signUp(username, password);
+      setIsLoading(false);
+      if (success) navigate("/dashboard");
+    } else {
+      const success = await login(username, password);
+      setIsLoading(false);
+      if (success) navigate("/dashboard");
     }
   };
 
@@ -55,12 +71,16 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Login Form */}
+        {/* Login / SignUp Form */}
         <Card className="shadow-lg border-0 shadow-cosmic/20">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center">Entrar</CardTitle>
+            <CardTitle className="text-2xl text-center">
+              {isSignUp ? "Criar Conta" : "Entrar"}
+            </CardTitle>
             <CardDescription className="text-center">
-              Digite suas credenciais para acessar o sistema
+              {isSignUp
+                ? "Crie uma nova conta"
+                : "Digite suas credenciais para acessar o sistema"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -89,28 +109,64 @@ const Login = () => {
                   className="transition-all duration-200 focus:shadow-glow"
                 />
               </div>
-              <Button 
-                type="submit" 
+
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirme a Senha</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Repita sua senha"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={isLoading}
+                    className="transition-all duration-200 focus:shadow-glow"
+                  />
+                </div>
+              )}
+
+              <Button
+                type="submit"
                 className="w-full bg-gradient-cosmic hover:shadow-glow transition-all duration-200"
-                disabled={isLoading || !username || !password}
+                disabled={
+                  isLoading ||
+                  !username ||
+                  !password ||
+                  (isSignUp && !confirmPassword)
+                }
               >
                 {isLoading ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
-                    Entrando...
+                    {isSignUp ? "Criando conta..." : "Entrando..."}
                   </>
+                ) : isSignUp ? (
+                  "Criar Conta"
                 ) : (
-                  'Entrar'
+                  "Entrar"
                 )}
               </Button>
             </form>
+
+            <div className="text-center mt-4">
+              <button
+                className="text-sm text-primary underline"
+                onClick={() => setIsSignUp(!isSignUp)}
+              >
+                {isSignUp
+                  ? "Já tem uma conta? Entrar"
+                  : "Não tem conta? Criar conta"}
+              </button>
+            </div>
           </CardContent>
         </Card>
 
         {/* Demo credentials */}
         <div className="text-center text-sm text-muted-foreground">
           <p>Credenciais de demonstração:</p>
-          <p><strong>Usuário:</strong> admin | <strong>Senha:</strong> admin123</p>
+          <p>
+            <strong>Usuário:</strong> admin | <strong>Senha:</strong> admin123
+          </p>
         </div>
       </div>
     </div>
