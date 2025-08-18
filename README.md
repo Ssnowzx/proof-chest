@@ -1,89 +1,145 @@
-# ProofChest — Local Development Guide & Change Log
+# Proof Chest
 
-Este README descreve como rodar o projeto localmente e resume as mudanças feitas para facilitar desenvolvimento sem um backend Supabase totalmente configurado.
+Resumo curto
 
-## Resumo das alterações (feitas neste branch/workspace)
+- App React + Supabase para upload/gestão de documentos.
+- Removidas menções ao Lovable e adicionados fallbacks DEV para login/upload.
 
-- Removidas referências ao pacote e marca "Lovable" e dependências associadas.
-- Login:
-  - Adicionado fallback de desenvolvimento (DEV): credenciais rápidas `admin`/`admin` e `admin`/`admin123` criam um usuário `dev-admin` com permissões de administrador.
-  - Persistência do usuário DEV em `localStorage` (chave `dev_user`) para manter permissões após atualizar a página.
-  - Implementado método `signUp` no `AuthContext` para criar contas. Em ambiente DEV, se a inserção no Supabase falhar, o usuário é persistido localmente.
-- Upload de documentos:
-  - Fallback DEV: quando o `user.id` começa com `dev`, os uploads salvam os documentos em `localStorage` (`dev_documents`) como alternativa ao Supabase Storage/table.
-  - UI simplificada para seleção de arquivo (caixa grande removida). Mantém preview, extração de OCR e remoção.
-  - `DocumentsPage` adaptada para ler/excluir documentos do `localStorage` em modo DEV, evitar erros de UUID inválido e exibir imagens data-URL.
-  - Adicionado botão "Adicionar Documento" no cabeçalho para usuários (não-admin) quando já existirem documentos.
-- Melhorias gerais:
-  - Logs de debug e tratamento de erros mais informativo para upload/login.
-  - Correções TypeScript/sonner (uso correto de toasts).
+Status atual (onde paramos)
 
-## Arquivos principais modificados
+- Issue bloqueadora: signUp cria conta no Auth, mas INSERT na tabela `users` falha com erro RLS: `42501 new row violates row-level security policy for table "users"` e às vezes 401 no endpoint REST.
+- Causa provável: INSERT está a ser feita sem sessão válida ou as policies RLS não permitem inserir (a tabela `users.id` é do tipo UUID; policies devem usar `auth.uid()::uuid`).
+- Código relevante: `src/contexts/AuthContext.tsx` (função `signUp`) — já implementa tentativas para obter `authUserId` (getSession / signInWithPassword / onAuthStateChange wait), mas o INSERT continua a ser bloqueado enquanto não existir sessão ou se policy estiver incorreta.
 
-- `src/contexts/AuthContext.tsx` — persistência DEV, `login`, `signUp`, `logout` aprimorados
-- `src/pages/Login.tsx` — UI para alternar entre Login e Criar Conta
-- `src/pages/UploadPage.tsx` — fallback DEV para salvar documentos em `localStorage`, UI de seleção de arquivo
-- `src/pages/DocumentsPage.tsx` — fallback DEV para listar/excluir documentos, aceitar data URLs, botão "Adicionar Documento"
-- `README.md`, `vite.config.ts`, `package.json`, `index.html` — remoções/limpezas relacionadas a Lovable (já aplicadas)
+Como rodar localmente
 
-## Como rodar localmente (passo a passo)
+1. Instalar e rodar:
+   - npm install
+   - npm run dev
+2. Frontend usa a key anon/public do Supabase (ver `src/integrations/supabase/client.ts`).
+3. Em modo DEV existem fallbacks:
+   - login: admin/admin e admin/admin123 criam `dev_user` em localStorage (mantém permissões locais)
+   - signUp/upload em DEV podem gravar em localStorage
 
-Requisitos: Node.js + npm
+SQL a aplicar no Supabase (IMPORTANTE: sua coluna `users.id` é UUID)
+Cole e execute no SQL editor do Supabase — estas policies habilitam RLS e permitem que o usuário autenticado insira a própria linha (id = auth.uid()::uuid):
 
-1. Clone o repositório:
+-- Habilitar RLS na tabela users
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
-```sh
-git clone https://github.com/Ssnowzx/proof-chest
-cd proof-chest
-```
+-- INSERT: apenas quando id = auth.uid()::uuid
+CREATE POLICY users_insert_own
+ON public.users
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid()::uuid = id);
 
-2. Instale dependências:
+-- SELECT: dono ou admin
+CREATE POLICY users_select_own_or_admin
+ON public.users
+FOR SELECT
+TO authenticated
+USING (
+auth.uid()::uuid = id
+OR EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid()::uuid AND u.is_admin = TRUE)
+);
 
-```sh
-npm install
-```
+-- UPDATE: dono ou admin
+CREATE POLICY users_update_own_or_admin
+ON public.users
+FOR UPDATE
+TO authenticated
+USING (
+auth.uid()::uuid = id
+OR EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid()::uuid AND u.is_admin = TRUE)
+)
+WITH CHECK (
+auth.uid()::uuid = id
+OR EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid()::uuid AND u.is_admin = TRUE)
+);
 
-3. Rode em modo desenvolvimento:
+-- DELETE: admin apenas
+CREATE POLICY users_delete_admin_only
+ON public.users
+FOR DELETE
+TO authenticated
+USING (
+EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid()::uuid AND u.is_admin = TRUE)
+);
 
-```sh
-npm run dev
-```
+Políticas para `documents` (assumindo owner UUID)
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 
-4. Variáveis de ambiente (opcional):
+CREATE POLICY documents_insert_owner
+ON public.documents
+FOR INSERT
+TO authenticated
+WITH CHECK (owner = auth.uid()::uuid);
 
-- Para integrar com Supabase, crie um `.env` com as chaves esperadas (ver `src/integrations/supabase/client.ts`).
+CREATE POLICY documents_select_owner_or_admin
+ON public.documents
+FOR SELECT
+TO authenticated
+USING (
+owner = auth.uid()::uuid
+OR EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid()::uuid AND u.is_admin = TRUE)
+);
 
-## Como testar os fallbacks e funcionalidades introduzidas
+CREATE POLICY documents_update_owner_or_admin
+ON public.documents
+FOR UPDATE
+TO authenticated
+USING (
+owner = auth.uid()::uuid
+OR EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid()::uuid AND u.is_admin = TRUE)
+)
+WITH CHECK (
+owner = auth.uid()::uuid
+OR EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid()::uuid AND u.is_admin = TRUE)
+);
 
-- Login Dev (mantém admin após reload):
+CREATE POLICY documents_delete_owner_or_admin
+ON public.documents
+FOR DELETE
+TO authenticated
+USING (
+owner = auth.uid()::uuid
+OR EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid()::uuid AND u.is_admin = TRUE)
+);
 
-  - Use `admin` / `admin` ou `admin` / `admin123` na tela de login. Isso seta `dev_user` em `localStorage` e mantém o usuário logado com permissões de admin após atualizar a página.
+Debug / passos para verificar no cliente
 
-- Criar conta (Sign Up):
+1. Antes de chamar `supabase.from('users').insert(...)` adicione logs em `src/contexts/AuthContext.tsx`:
+   - console.log('session before insert', await supabase.auth.getSession());
+   - console.log('authUserId to insert', authUserId);
+     Confirme que `session.data.session.user.id` (ou `session.user.id`) === `authUserId`.
+2. Se o id estiver `null` ou não bater, a inserção será bloqueada. O código já aguarda onAuthStateChange por até 20s — verifique se esse fluxo obtém o id.
+3. Se quiser testar rápido sem RLS (somente DEBUG), rode:
+   ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+   (reabilite depois!)
 
-  - Na tela de login clique em "Não tem conta? Criar conta" e preencha usuário/senha. Em ambiente DEV, se o Supabase não estiver disponível, a conta será criada localmente e persistida em `localStorage`.
+Notas importantes
 
-- Upload e visualização de documentos em DEV:
+- Não use a service_role key no frontend.
+- Se o fluxo de signUp requer confirmação de e-mail, o Supabase pode não criar uma sessão imediatamente; então o cliente não terá auth.uid() e o INSERT será bloqueado por RLS. Soluções:
+  - exigir confirmação e criar a linha `users` manualmente via função server-side (service role) quando apropriado; ou
+  - permitir INSERT na tabela `users` para o fluxo de signUp AUTENTICADO com a policy acima e garantir que o cliente tenha sessão.
+- Em DEV as ids geradas pelo fallback (ex.: `dev-...`) não são UUID e irão falhar se a coluna for UUID. Use apenas para testes locais desligando policies ou adaptando a coluna para text.
 
-  - Faça login como `dev-admin` ou como usuário criado.
-  - Vá para Upload → selecione imagem → Salvar Documento.
-  - Em DEV os documentos serão salvos em `localStorage` na chave `dev_documents`. A página de documentos (`/documents/:category`) mostra imagens e texto extraído.
+Próximos passos sugeridos (curto prazo)
 
-- Excluir documentos em DEV:
-  - Use o ícone de lixeira em cada cartão; isso remove o item de `localStorage` e da UI.
+- Aplique as policies acima (versão UUID) no SQL editor do Supabase.
+- Adicione logs no cliente (passo Debug acima) e tente novo signUp para confirmar sessão e id presentes antes do INSERT.
+- Opcional: gerar `supabase-policies.sql` no repositório e commitar.
 
-## Observações sobre Supabase e produção
+Onde paramos localmente
 
-- Em produção (quando `import.meta.env.DEV` não estiver ativo) o app espera que:
-  - A tabela `users` e a tabela `documents` existam no Supabase.
-  - Políticas RLS estejam configuradas para permitir os inserts/selects/ deletes conforme seu modelo (o projeto já identifica erros comuns: RLS, 400/406 etc.).
+- Arquivo a editar para debug/ajustes: `src/contexts/AuthContext.tsx` (linha `signUp`).
+- SQL a aplicar no Supabase: as queries acima (UUID).
 
-Se precisar, posso gerar exemplos SQL de policies RLS mínimas para permitir leitura/escrita por proprietários e leitura para admins.
+Se quiser eu:
 
-## Commit e push remotos
+- crio o arquivo `supabase-policies.sql` no repositório com estas queries; ou
+- insiro os logs/um pequeno retry no `AuthContext.tsx` e testo localmente.
 
-Este workspace aplica os commits localmente. Se desejar que eu faça push para `https://github.com/Ssnowzx/proof-chest`, eu irei tentar empurrar os commits para o repositório remoto (pode exigir que você tenha permissões e credenciais configuradas no ambiente local).
-
----
-
-Se quiser que eu também gere as instruções SQL para o Supabase (users/documents table + policies RLS) ou adicione uma tela para gerenciar `dev_documents`, diga qual prefere que eu faça a seguir.
+-- fim
