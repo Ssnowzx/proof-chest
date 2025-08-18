@@ -1,18 +1,17 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
-import { 
-  FileText, 
-  Upload, 
-  Bell, 
-  LogOut, 
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  FileText,
+  Bell,
+  LogOut,
   Award,
   GraduationCap,
   Receipt,
-  Settings
-} from 'lucide-react';
+  Settings,
+} from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -20,45 +19,38 @@ const Dashboard = () => {
 
   const menuOptions = [
     {
-      title: 'APC',
-      description: 'Atividades Práticas Curriculares',
+      title: "APC",
+      description: "Atividades Práticas Curriculares",
       icon: Award,
-      path: '/documents/apc',
-      gradient: 'from-purple-500 to-purple-600'
+      path: "/documents/apc",
+      gradient: "from-purple-500 to-purple-600",
     },
     {
-      title: 'ACE',
-      description: 'Atividades Complementares de Ensino',
+      title: "ACE",
+      description: "Atividades Complementares de Ensino",
       icon: GraduationCap,
-      path: '/documents/ace',
-      gradient: 'from-blue-500 to-blue-600'
+      path: "/documents/ace",
+      gradient: "from-blue-500 to-blue-600",
     },
     {
-      title: 'RECIBOS',
-      description: 'Comprovantes de Mensalidade',
+      title: "RECIBOS",
+      description: "Comprovantes de Mensalidade",
       icon: Receipt,
-      path: '/documents/recibos',
-      gradient: 'from-green-500 to-green-600'
+      path: "/documents/recibos",
+      gradient: "from-green-500 to-green-600",
     },
     {
-      title: 'ADICIONAR IMG',
-      description: 'Upload de Documentos',
-      icon: Upload,
-      path: '/upload',
-      gradient: 'from-orange-500 to-orange-600'
-    },
-    {
-      title: 'AVISOS',
-      description: 'Comunicados e Notícias',
+      title: "AVISOS",
+      description: "Comunicados e Notícias",
       icon: Bell,
-      path: '/avisos',
-      gradient: 'from-red-500 to-red-600'
-    }
+      path: "/avisos",
+      gradient: "from-red-500 to-red-600",
+    },
   ];
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate("/");
   };
 
   return (
@@ -82,7 +74,7 @@ const Dashboard = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/admin')}
+                onClick={() => navigate("/admin")}
                 className="border-primary/20 hover:bg-primary/5"
               >
                 <Settings className="w-4 h-4 mr-2" />
@@ -122,7 +114,9 @@ const Dashboard = () => {
                 onClick={() => navigate(option.path)}
               >
                 <CardContent className="p-6 text-center space-y-4">
-                  <div className={`mx-auto w-16 h-16 bg-gradient-to-br ${option.gradient} rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-glow transition-all duration-300`}>
+                  <div
+                    className={`mx-auto w-16 h-16 bg-gradient-to-br ${option.gradient} rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-glow transition-all duration-300`}
+                  >
                     <Icon className="w-8 h-8 text-white" />
                   </div>
                   <div>

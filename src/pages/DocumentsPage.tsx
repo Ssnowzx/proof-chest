@@ -12,7 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, FileText, Eye, Calendar, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Eye,
+  Calendar,
+  Trash2,
+  Check,
+} from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -32,6 +39,12 @@ const DocumentsPage = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+
+  // Upload UI state
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
 
   const categoryConfig = {
     apc: {
@@ -111,7 +124,7 @@ const DocumentsPage = () => {
         .from("documents")
         .select("*")
         .eq("user_id", user?.id)
-        .eq("category", category.toUpperCase())
+        .eq("category", category?.toUpperCase())
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -162,6 +175,140 @@ const DocumentsPage = () => {
     }`;
   };
 
+  // Upload helpers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setPreview(previewUrl);
+    }
+  };
+
+  const uploadDocument = async () => {
+    if (!selectedFile) {
+      toast.error("Selecione um arquivo");
+      return;
+    }
+    if (!user) {
+      toast.error("Faça login para salvar documentos");
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      const fileExt = selectedFile.name.split(".").pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      // DEV fallback
+      if (import.meta.env.DEV && user.id?.startsWith("dev")) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(selectedFile);
+        });
+
+        const devDocs = JSON.parse(
+          localStorage.getItem("dev_documents") || "[]"
+        );
+        const categoryKey =
+          category?.toLowerCase() === "recibo"
+            ? "recibos"
+            : category?.toLowerCase();
+        const doc = {
+          id: fileName,
+          fileName,
+          dataUrl,
+          category: categoryKey,
+          extracted_text: "",
+          created_at: new Date().toISOString(),
+        };
+        devDocs.push(doc);
+        localStorage.setItem("dev_documents", JSON.stringify(devDocs));
+
+        setDocuments([
+          {
+            id: doc.id,
+            category: doc.category,
+            image_url: doc.dataUrl,
+            extracted_text: doc.extracted_text,
+            created_at: doc.created_at,
+          },
+          ...documents,
+        ]);
+        toast.success("Documento salvo (modo desenvolvimento)");
+        setUploadOpen(false);
+        setSelectedFile(null);
+        setPreview("");
+        return;
+      }
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(fileName, selectedFile, { upsert: true });
+
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw uploadError;
+      }
+
+      // Insert DB record
+      const { data: dbData, error: dbError } = await supabase
+        .from("documents")
+        .insert({
+          user_id: user.id,
+          category: category?.toUpperCase(),
+          image_url: fileName,
+          extracted_text: "",
+        });
+
+      if (dbError) {
+        console.error("DB insert error:", dbError);
+        throw dbError;
+      }
+
+      const dbArray = (dbData as any) || [];
+      const inserted =
+        Array.isArray(dbArray) && dbArray.length > 0 ? dbArray[0] : null;
+
+      const newDoc = {
+        id: inserted?.id ?? fileName,
+        category: category ?? "",
+        image_url: fileName,
+        extracted_text: "",
+        created_at: inserted?.created_at ?? new Date().toISOString(),
+      };
+
+      setDocuments([newDoc, ...documents]);
+      toast.success("Documento salvo com sucesso");
+      setUploadOpen(false);
+      setSelectedFile(null);
+      setPreview("");
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      const msg = String(error?.message || error?.statusText || error);
+      if (msg.toLowerCase().includes("row-level")) {
+        toast.error(
+          "Erro de permissão (RLS). Verifique políticas do Supabase para a tabela 'documents'."
+        );
+      } else if (
+        msg.toLowerCase().includes("bad request") ||
+        msg.includes("400")
+      ) {
+        toast.error(
+          "Erro no upload (400). Verifique bucket 'documents' e se o arquivo é suportado."
+        );
+      } else {
+        toast.error("Erro ao salvar documento");
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (!config) {
     return (
       <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
@@ -209,7 +356,7 @@ const DocumentsPage = () => {
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => navigate("/upload")}
+                onClick={() => setUploadOpen(true)}
                 className="ml-2"
               >
                 Adicionar Documento
@@ -234,7 +381,7 @@ const DocumentsPage = () => {
             <p className="text-muted-foreground mb-6">
               Você ainda não tem documentos da categoria {config.title}
             </p>
-            <Button onClick={() => navigate("/upload")}>
+            <Button onClick={() => setUploadOpen(true)}>
               Adicionar Primeiro Documento
             </Button>
           </div>
@@ -310,6 +457,87 @@ const DocumentsPage = () => {
           </div>
         )}
       </div>
+
+      {/* Upload Modal */}
+      {uploadOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-card rounded-lg w-full max-w-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                Adicionar Documento - {config.title}
+              </h3>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setUploadOpen(false);
+                  setSelectedFile(null);
+                  setPreview("");
+                }}
+              >
+                ✕
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">
+                  Imagem do Documento
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="mt-2"
+                />
+                {preview && (
+                  <div className="mt-3 border rounded-lg overflow-hidden">
+                    <img
+                      src={preview}
+                      alt="Preview"
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={uploadDocument}
+                  disabled={!selectedFile || uploading}
+                >
+                  {uploading ? (
+                    <>
+                      <LoadingSpinner size="sm" className="mr-2" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Salvar Documento
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setUploadOpen(false);
+                    setSelectedFile(null);
+                    setPreview("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+
+              {!user && (
+                <p className="text-sm text-red-500">
+                  Faça login para salvar documentos.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Document Modal */}
       {selectedDoc && (

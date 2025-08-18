@@ -50,17 +50,21 @@ npm run dev
 ```
 
 4. Variáveis de ambiente (opcional):
+
 - Para integrar com Supabase, crie um `.env` com as chaves esperadas (ver `src/integrations/supabase/client.ts`).
 
 ## Como testar os fallbacks e funcionalidades introduzidas
 
 - Login Dev (mantém admin após reload):
+
   - Use `admin` / `admin` ou `admin` / `admin123` na tela de login. Isso seta `dev_user` em `localStorage` e mantém o usuário logado com permissões de admin após atualizar a página.
 
 - Criar conta (Sign Up):
+
   - Na tela de login clique em "Não tem conta? Criar conta" e preencha usuário/senha. Em ambiente DEV, se o Supabase não estiver disponível, a conta será criada localmente e persistida em `localStorage`.
 
 - Upload e visualização de documentos em DEV:
+
   - Faça login como `dev-admin` ou como usuário criado.
   - Vá para Upload → selecione imagem → Salvar Documento.
   - Em DEV os documentos serão salvos em `localStorage` na chave `dev_documents`. A página de documentos (`/documents/:category`) mostra imagens e texto extraído.

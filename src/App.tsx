@@ -8,7 +8,6 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import DocumentsPage from "./pages/DocumentsPage";
-import UploadPage from "./pages/UploadPage";
 import AvisosPage from "./pages/AvisosPage";
 import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
@@ -27,7 +26,6 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/documents/:category" element={<DocumentsPage />} />
-            <Route path="/upload" element={<UploadPage />} />
             <Route path="/avisos" element={<AvisosPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<NotFound />} />
