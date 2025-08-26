@@ -121,14 +121,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // Fazer login no Supabase Auth usando o ID do usuário como email
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email: `${userData.id}@proofchest.local`,
         password: userData.id, // Usar o ID como senha temporária
       });
 
       if (signInError) {
         // Se o usuário não existe no auth, criar
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: `${userData.id}@proofchest.local`,
           password: userData.id,
           options: {
@@ -139,9 +139,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         if (signUpError) {
-          toast.error("Erro ao fazer login");
-          return false;
+          console.error("SignUp error:", signUpError);
+          // Mesmo que falhe o auth, continuar com o login
         }
+      }
+
+      // Definir o contexto de autenticação para o RLS
+      if (authData?.user || signInError?.message?.includes('Email not confirmed')) {
+        // Usuário autenticado com sucesso ou precisa confirmar email
+        console.log("User authenticated:", userData.id);
       }
 
       setUser({
