@@ -19,18 +19,21 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          image_url: string | null
           title: string
         }
         Insert: {
           created_at?: string | null
           description?: string | null
           id?: string
+          image_url?: string | null
           title: string
         }
         Update: {
           created_at?: string | null
           description?: string | null
           id?: string
+          image_url?: string | null
           title?: string
         }
         Relationships: []
@@ -39,25 +42,34 @@ export type Database = {
         Row: {
           category: string
           created_at: string | null
+          evento: string | null
           extracted_text: string | null
+          horas: number | null
           id: string
           image_url: string
+          observacao: string | null
           user_id: string | null
         }
         Insert: {
           category: string
           created_at?: string | null
+          evento?: string | null
           extracted_text?: string | null
+          horas?: number | null
           id?: string
           image_url: string
+          observacao?: string | null
           user_id?: string | null
         }
         Update: {
           category?: string
           created_at?: string | null
+          evento?: string | null
           extracted_text?: string | null
+          horas?: number | null
           id?: string
           image_url?: string
+          observacao?: string | null
           user_id?: string | null
         }
         Relationships: [

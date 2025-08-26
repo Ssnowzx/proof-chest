@@ -17,6 +17,7 @@ interface Aviso {
   id: string;
   title: string;
   description: string;
+  image_url: string | null;
   created_at: string;
 }
 
@@ -29,7 +30,8 @@ const AdminPage = () => {
   const [editingAviso, setEditingAviso] = useState<Aviso | null>(null);
   const [formData, setFormData] = useState({
     title: '',
-    description: ''
+    description: '',
+    image: null as File | null
   });
 
   useEffect(() => {
@@ -67,15 +69,41 @@ const AdminPage = () => {
 
     try {
       setSubmitting(true);
+      let imageUrl = null;
+
+      // Upload image if provided
+      if (formData.image) {
+        const fileExt = formData.image.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avisos')
+          .upload(filePath, formData.image);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avisos')
+          .getPublicUrl(filePath);
+
+        imageUrl = publicUrl;
+      }
 
       if (editingAviso) {
         // Update existing aviso
+        const updateData: any = {
+          title: formData.title,
+          description: formData.description
+        };
+        
+        if (imageUrl) {
+          updateData.image_url = imageUrl;
+        }
+
         const { error } = await supabase
           .from('avisos')
-          .update({
-            title: formData.title,
-            description: formData.description
-          })
+          .update(updateData)
           .eq('id', editingAviso.id);
 
         if (error) throw error;
@@ -86,7 +114,8 @@ const AdminPage = () => {
           .from('avisos')
           .insert({
             title: formData.title,
-            description: formData.description
+            description: formData.description,
+            image_url: imageUrl
           });
 
         if (error) throw error;
@@ -94,7 +123,7 @@ const AdminPage = () => {
       }
 
       // Reset form
-      setFormData({ title: '', description: '' });
+      setFormData({ title: '', description: '', image: null });
       setEditingAviso(null);
       loadAvisos();
     } catch (error) {
@@ -109,7 +138,8 @@ const AdminPage = () => {
     setEditingAviso(aviso);
     setFormData({
       title: aviso.title,
-      description: aviso.description || ''
+      description: aviso.description || '',
+      image: null
     });
   };
 
@@ -134,7 +164,7 @@ const AdminPage = () => {
 
   const cancelEdit = () => {
     setEditingAviso(null);
-    setFormData({ title: '', description: '' });
+    setFormData({ title: '', description: '', image: null });
   };
 
   if (!user?.is_admin) {
@@ -203,6 +233,17 @@ const AdminPage = () => {
                       onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                       disabled={submitting}
                       rows={4}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="image">Imagem (opcional)</Label>
+                    <Input
+                      id="image"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.files?.[0] || null }))}
+                      disabled={submitting}
+                      className="file:text-primary-foreground file:bg-primary file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -290,6 +331,15 @@ const AdminPage = () => {
                             </Button>
                           </div>
                         </div>
+                        {aviso.image_url && (
+                          <div className="mb-2">
+                            <img
+                              src={aviso.image_url}
+                              alt={aviso.title}
+                              className="w-full h-32 object-cover rounded-md"
+                            />
+                          </div>
+                        )}
                         {aviso.description && (
                           <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                             {aviso.description}

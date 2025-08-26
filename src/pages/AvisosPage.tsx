@@ -14,6 +14,7 @@ interface Aviso {
   id: string;
   title: string;
   description: string;
+  image_url: string | null;
   created_at: string;
 }
 
@@ -111,13 +112,22 @@ const AvisosPage = () => {
                     </div>
                   </div>
                 </CardHeader>
-                {aviso.description && (
-                  <CardContent>
+                <CardContent className="space-y-4">
+                  {aviso.image_url && (
+                    <div>
+                      <img
+                        src={aviso.image_url}
+                        alt={aviso.title}
+                        className="w-full h-48 object-cover rounded-lg"
+                      />
+                    </div>
+                  )}
+                  {aviso.description && (
                     <p className="text-muted-foreground whitespace-pre-wrap">
                       {aviso.description}
                     </p>
-                  </CardContent>
-                )}
+                  )}
+                </CardContent>
               </Card>
             ))}
           </div>

@@ -29,6 +29,9 @@ interface Document {
   category: string;
   image_url: string;
   extracted_text: string;
+  evento?: string;
+  horas?: number;
+  observacao?: string;
   created_at: string;
 }
 
@@ -429,6 +432,30 @@ const DocumentsPage = () => {
                     />
                   </div>
 
+                  {/* Extra Fields Preview */}
+                  {(doc.evento || doc.horas || doc.observacao) && (
+                    <div className="bg-muted/50 p-3 rounded-md space-y-2">
+                      {doc.evento && (
+                        <div>
+                          <span className="text-xs font-medium">Evento:</span>
+                          <p className="text-xs text-muted-foreground">{doc.evento}</p>
+                        </div>
+                      )}
+                      {doc.horas && (
+                        <div>
+                          <span className="text-xs font-medium">Horas:</span>
+                          <p className="text-xs text-muted-foreground">{doc.horas}h</p>
+                        </div>
+                      )}
+                      {doc.observacao && (
+                        <div>
+                          <span className="text-xs font-medium">Observação:</span>
+                          <p className="text-xs text-muted-foreground line-clamp-2">{doc.observacao}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Extracted Text Preview */}
                   {doc.extracted_text && (
                     <div className="bg-muted/50 p-3 rounded-md">
@@ -562,6 +589,34 @@ const DocumentsPage = () => {
                 alt="Document"
                 className="w-full rounded-lg shadow-lg"
               />
+              
+              {/* Extra Fields */}
+              {(selectedDoc.evento || selectedDoc.horas || selectedDoc.observacao) && (
+                <div>
+                  <h3 className="font-semibold mb-3">Informações Adicionais:</h3>
+                  <div className="bg-muted p-4 rounded-lg space-y-3">
+                    {selectedDoc.evento && (
+                      <div>
+                        <span className="font-medium">Evento:</span>
+                        <p className="text-muted-foreground">{selectedDoc.evento}</p>
+                      </div>
+                    )}
+                    {selectedDoc.horas && (
+                      <div>
+                        <span className="font-medium">Horas:</span>
+                        <p className="text-muted-foreground">{selectedDoc.horas} horas</p>
+                      </div>
+                    )}
+                    {selectedDoc.observacao && (
+                      <div>
+                        <span className="font-medium">Observação:</span>
+                        <p className="text-muted-foreground whitespace-pre-wrap">{selectedDoc.observacao}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {selectedDoc.extracted_text && (
                 <div>
                   <h3 className="font-semibold mb-3">Texto Extraído:</h3>
